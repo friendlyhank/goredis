@@ -7,6 +7,9 @@ import (
 )
 
 func main(){
-	err := rds.GetRedisDefault().Ping()
+	err := rds.GetRedisDefault().SetBit("uid:100022:sign:2019-12-12",1,1)
 	fmt.Println(err)
+
+	num,_ := rds.GetRedisDefault().GetBit("uid:100022:sign:2019-12-12",1)
+	fmt.Println(num)
 }

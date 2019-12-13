@@ -522,3 +522,15 @@ func (rs *RedisSource) Publish(channel, value interface{}) error {
 	_, err := c.Do("PUBLISH", channel, value)
 	return err
 }
+
+/******************************************** 位图 ******************************************************/
+//SetBit-
+func (rs *RedisSource)SetBit(key string,offset int64,value int)error{
+	_,err := rs.Do("setbit",key,offset,value)
+	return err
+}
+
+//GetBit -
+func (rs *RedisSource)GetBit(key string,offset int64) (int,error){
+	return redis.Int(rs.Do("getbit",key,offset))
+}
