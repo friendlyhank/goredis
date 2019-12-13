@@ -6,14 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"git.biezao.com/ant/xmiss/foundation/util/exception"
-	"git.biezao.com/ant/xmiss/foundation/vars"
-
 	"strings"
 
 	"github.com/astaxie/beego/logs"
-	"github.com/garyburd/redigo/redis"
-	pfc "github.com/niean/goperfcounter"
+	"github.com/gomodule/redigo/redis"
 )
 
 // RedisSource -
@@ -73,7 +69,7 @@ func InitRedisServer(server, password string, maxIdle int) {
 func Init() {
 	logs.Debug("|foundation|init|rds|Init")
 	// xmiss
-	redissource := vars.StoreSource.Redis
+	redissource := ""
 	if rdss := strings.Split(redissource, ","); len(rdss) == 3 {
 		// address,connect,password
 		maxIdle, _ := strconv.Atoi(rdss[1])
@@ -109,19 +105,16 @@ func (rs *RedisSource) Ping() error {
 
 // GetConn -
 func (rs *RedisSource) GetConn() redis.Conn {
-	defer exception.Catch(fmt.Sprintf("|redis|GetConn|exception|redissource|%+v", rs))
 	c := rs.dbpool.Get()
 	// 统计redis 连接数
-	pfc.Gauge("redis.activie.count", int64(rs.dbpool.ActiveCount()))
 	return c
-
 }
 
 // CloseConn -
 func (rs *RedisSource) CloseConn(conn redis.Conn) (err error) {
 	err = conn.Close()
 	// 统计redis 连接数
-	pfc.Gauge("redis.activie.count", int64(rs.dbpool.ActiveCount()))
+
 	return
 }
 
@@ -135,10 +128,8 @@ func (rs *RedisSource) Do(commandName string, args ...interface{}) (reply interf
 
 // NewPubSubCoon -
 func (rs *RedisSource) NewPubSubCoon() *redis.PubSubConn {
-	defer exception.Catch(fmt.Sprintf("|redis|NewPubSubCoon|exception|redissource|%+v", rs))
 	pubSubConn := &redis.PubSubConn{Conn: rs.dbpool.Get()}
 	// 统计redis 连接数
-	pfc.Gauge("redis.activie.count", int64(rs.dbpool.ActiveCount()))
 	return pubSubConn
 }
 
@@ -155,7 +146,6 @@ func (rs *RedisSource) PSubscribe(pattern string) error {
 	if rs.psc == nil {
 		rs.psc = &redis.PubSubConn{Conn: rs.dbpool.Get()}
 		// 统计redis 连接数
-		pfc.Gauge("redis.activie.count", int64(rs.dbpool.ActiveCount()))
 	}
 	return rs.psc.PSubscribe(pattern)
 }
