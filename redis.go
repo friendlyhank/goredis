@@ -3,6 +3,7 @@ package rds
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/astaxie/beego"
 	"strconv"
 	"time"
 
@@ -68,8 +69,8 @@ func InitRedisServer(server, password string, maxIdle int) {
 // Init -
 func Init() {
 	logs.Debug("|foundation|init|rds|Init")
-	// xmiss
-	redissource := ""
+	//
+	redissource := beego.AppConfig.String("redis")
 	if rdss := strings.Split(redissource, ","); len(rdss) == 3 {
 		// address,connect,password
 		maxIdle, _ := strconv.Atoi(rdss[1])
@@ -118,52 +119,17 @@ func (rs *RedisSource) CloseConn(conn redis.Conn) (err error) {
 	return
 }
 
+// TTL - 过期时间
+func (rs *RedisSource) TTL(key string) (int, error) {
+	return redis.Int(rs.Do("TTL", key))
+}
+
 // Do -
 func (rs *RedisSource) Do(commandName string, args ...interface{}) (reply interface{}, err error) {
 	c := rs.GetConn()
 	defer rs.CloseConn(c)
 
 	return c.Do(commandName, args...)
-}
-
-// NewPubSubCoon -
-func (rs *RedisSource) NewPubSubCoon() *redis.PubSubConn {
-	pubSubConn := &redis.PubSubConn{Conn: rs.dbpool.Get()}
-	// 统计redis 连接数
-	return pubSubConn
-}
-
-// Subscribe -
-func (rs *RedisSource) Subscribe(channel string) error {
-	if rs.psc == nil {
-		rs.psc = rs.NewPubSubCoon()
-	}
-	return rs.psc.Subscribe(channel)
-}
-
-// PSubscribe -
-func (rs *RedisSource) PSubscribe(pattern string) error {
-	if rs.psc == nil {
-		rs.psc = &redis.PubSubConn{Conn: rs.dbpool.Get()}
-		// 统计redis 连接数
-	}
-	return rs.psc.PSubscribe(pattern)
-}
-
-// Receive -
-func (rs *RedisSource) Receive() interface{} {
-	if rs.psc == nil {
-		return fmt.Errorf("please subscribe first")
-	}
-	return rs.psc.Receive()
-}
-
-// Publish -
-func (rs *RedisSource) Publish(channel, value interface{}) error {
-	c := rs.GetConn()
-	defer rs.CloseConn(c)
-	_, err := c.Do("PUBLISH", channel, value)
-	return err
 }
 
 // Incr -
@@ -514,7 +480,45 @@ func (rs *RedisSource) SIsMember(key, field string) (bool, error) {
 	return false, err
 }
 
-// TTL - 过期时间
-func (rs *RedisSource) TTL(key string) (int, error) {
-	return redis.Int(rs.Do("TTL", key))
+/******************************************** 发布与订阅 ******************************************************/
+
+
+// NewPubSubCoon -
+func (rs *RedisSource) NewPubSubCoon() *redis.PubSubConn {
+	pubSubConn := &redis.PubSubConn{Conn: rs.dbpool.Get()}
+	// 统计redis 连接数
+	return pubSubConn
+}
+
+// Subscribe -
+func (rs *RedisSource) Subscribe(channel string) error {
+	if rs.psc == nil {
+		rs.psc = rs.NewPubSubCoon()
+	}
+	return rs.psc.Subscribe(channel)
+}
+
+// PSubscribe -
+func (rs *RedisSource) PSubscribe(pattern string) error {
+	if rs.psc == nil {
+		rs.psc = &redis.PubSubConn{Conn: rs.dbpool.Get()}
+		// 统计redis 连接数
+	}
+	return rs.psc.PSubscribe(pattern)
+}
+
+// Receive -
+func (rs *RedisSource) Receive() interface{} {
+	if rs.psc == nil {
+		return fmt.Errorf("please subscribe first")
+	}
+	return rs.psc.Receive()
+}
+
+// Publish -
+func (rs *RedisSource) Publish(channel, value interface{}) error {
+	c := rs.GetConn()
+	defer rs.CloseConn(c)
+	_, err := c.Do("PUBLISH", channel, value)
+	return err
 }
