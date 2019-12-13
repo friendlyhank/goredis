@@ -12,4 +12,5 @@ func main(){
 
 	num,_ := rds.GetRedisDefault().GetBit("uid:100022:sign:2019-12-12",1)
 	fmt.Println(num)
+
 }
