@@ -19,7 +19,7 @@ func TestMain(m *testing.M){
 
 func TestRdsSetBit(t *testing.T){
 	rs := GetRedisDefault()
-	err := rs.SetBit("uid:100022:sign:2019-12-12",1,true)
+	err := rs.SetBit("uid:100022:sign:2019-12",1,true)
 	if err != nil{
 		t.Errorf("%v",err)
 		return
@@ -27,7 +27,7 @@ func TestRdsSetBit(t *testing.T){
 }
 
 func TestRdsGetBit(t *testing.T){
-	num,err := GetRedisDefault().GetBit("uid:100022:sign:2019-12-12",1)
+	num,err := GetRedisDefault().GetBit("uid:100022:sign:2019-12",1)
 	if err != nil{
 		t.Errorf("%v",err)
 		return
@@ -36,13 +36,23 @@ func TestRdsGetBit(t *testing.T){
 }
 
 func TestRdsBitCount(t *testing.T){
-	count,err := GetRedisDefault().BitCount("uid:100022:sign:2019-12-12")
+	count,err := GetRedisDefault().BitCount("uid:100022:sign:2019-12")
 	if err != nil{
 		t.Errorf("%v",err)
 		return
 	}
 	t.Logf("%v",count)
 }
+
+func TestRdsBitPos(t *testing.T){
+	count,err := GetRedisDefault().BitPos("uid:100022:sign:2019-11",true)
+	if err != nil{
+		t.Errorf("%v",err)
+		return
+	}
+	t.Logf("%v",count)
+}
+
 
 
 
