@@ -70,7 +70,7 @@ func InitRedisServer(server, password string, maxIdle int) {
 func Init() {
 	logs.Debug("|foundation|init|rds|Init")
 	//
-	redissource := beego.AppConfig.String("redis")
+	redissource := beego.AppConfig.DefaultString("redis","192.168.85.109:6379,150,123456")
 	if rdss := strings.Split(redissource, ","); len(rdss) == 3 {
 		// address,connect,password
 		maxIdle, _ := strconv.Atoi(rdss[1])
@@ -525,7 +525,11 @@ func (rs *RedisSource) Publish(channel, value interface{}) error {
 
 /******************************************** 位图 ******************************************************/
 //SetBit-
-func (rs *RedisSource)SetBit(key string,offset int64,value int)error{
+func (rs *RedisSource)SetBit(key string,offset int64,status bool)error{
+	var value int
+	if status{
+		value =1
+	}
 	_,err := rs.Do("setbit",key,offset,value)
 	return err
 }
@@ -533,4 +537,20 @@ func (rs *RedisSource)SetBit(key string,offset int64,value int)error{
 //GetBit -
 func (rs *RedisSource)GetBit(key string,offset int64) (int,error){
 	return redis.Int(rs.Do("getbit",key,offset))
+}
+
+/*
+ *BitCount -
+ *@param key string
+ *@param cods []interface{} [start,end]
+ *@return
+ */
+func (rs *RedisSource)BitCount(key string,cods ...interface{})(int,error){
+	if len(cods) != 2{
+		return redis.Int(rs.Do("bitcount",key))
+	}
+	var args []interface{}
+	args = append(args,key)
+	args = append(args,cods...)
+	return redis.Int(rs.Do("bitcount",args...))
 }
