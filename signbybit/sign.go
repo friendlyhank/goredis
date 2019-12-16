@@ -34,9 +34,9 @@ func (us *UserSignDate)GetSignCount(uid int64,localTime time.Time)(int,error){
 func (us *UserSignDate)GetFirstSignDate(uid int64,localTime time.Time)(time.Time,error){
 	year,month,_:= localTime.Date()
 	value,err := rds.GetRedisDefault().BitPos(GetUserSignKey(uid,localTime),true)
-	return time.Date(year,month,)
+	return time.Date(year,month,value,0,0,0,0,time.Local),err
 }
 
 func GetUserSignKey(uid int64,localTime time.Time)string{
-	return fmt.Sprintf("uid:%v:sign:%v",uid,localTime.Format("2006-01-02"))
+	return fmt.Sprintf("uid:%v:sign:%v",uid,localTime.Format("2006-01"))
 }
