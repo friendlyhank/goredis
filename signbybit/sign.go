@@ -3,8 +3,8 @@ package signbybit
 import (
 	"fmt"
 	"time"
-	_ "hank.com/goredis/foundation"
-	"hank.com/goredis/foundation/rds"
+	_ "github.com/friendlyhank/goredis/foundation"
+	"github.com/friendlyhank/goredis/foundation/rds"
 )
 
 //UserSignDate -用户签到
@@ -33,8 +33,8 @@ func (us *UserSignDate)GetSignCount(uid int64,localTime time.Time)(int,error){
 //GetFirstSignDate -用户第一次签到的时间
 func (us *UserSignDate)GetFirstSignDate(uid int64,localTime time.Time)(time.Time,error){
 	year,month,_:= localTime.Date()
-	value,err := rds.GetRedisDefault().BitPos(GetUserSignKey(uid,localTime),true)
-	return time.Date(year,month,value,0,0,0,0,time.Local),err
+	day,err := rds.GetRedisDefault().BitPos(GetUserSignKey(uid,localTime),true)
+	return time.Date(year,month,day,0,0,0,0,time.Local),err
 }
 
 func GetUserSignKey(uid int64,localTime time.Time)string{

@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "hank.com/goredis/foundation"
+	_ "github.com/friendlyhank/goredis/foundation"
 )
 
 func main(){
