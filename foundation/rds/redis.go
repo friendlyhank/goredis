@@ -546,22 +546,20 @@ func (rs *RedisSource)GetBit(key string,offset int64) (int,error){
  *@return
  */
 func (rs *RedisSource)BitCount(key string,cods ...interface{})(int,error){
-	var args []interface{}
-	args = append(args,key)
-	args = append(args,cods...)
+	args := []interface{}{key}
+	if len(cods) != 0{
+		args = append(args,cods...)
+	}
+
 	return redis.Int(rs.Do("bitcount",args...))
 }
 
 //BitPos-
 func (rs *RedisSource)BitPos(key string,status bool,cods ...interface{})(int,error){
-	var (
-		args []interface{}
-		value int
-	)
+	var value int
 	if status{
 		value = 1
 	}
-	args = append(args,key)
-	args = append(args,value)
+	args := []interface{}{key,value}
 	return redis.Int(rs.Do("bitpos",args...))
 }
