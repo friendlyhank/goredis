@@ -483,7 +483,7 @@ func (rs *RedisSource) SIsMember(key, field string) (bool, error) {
 /******************************************** 发布与订阅 ******************************************************/
 
 
-// NewPubSubCoon -
+// NewPubSubCoon -NewPubSub对象
 func (rs *RedisSource) NewPubSubCoon() *redis.PubSubConn {
 	pubSubConn := &redis.PubSubConn{Conn: rs.dbpool.Get()}
 	// 统计redis 连接数
