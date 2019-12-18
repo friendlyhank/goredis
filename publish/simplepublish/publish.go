@@ -3,7 +3,7 @@ package simplepublish
 import (
 	"fmt"
 	_ "github.com/friendlyhank/goredis/foundation"
-	"github.com/friendlyhank/goredis/foundation/rds"
+	"github.com/friendlyhank/rds"
 	"github.com/gomodule/redigo/redis"
 	"log"
 	"sync"

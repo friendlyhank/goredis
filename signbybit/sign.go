@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	_ "github.com/friendlyhank/goredis/foundation"
-	"github.com/friendlyhank/goredis/foundation/rds"
+	"github.com/friendlyhank/rds"
 )
 
 //UserSignDate -用户签到
