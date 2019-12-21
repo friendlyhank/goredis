@@ -1,6 +1,6 @@
 package foundation
 
-import "github.com/friendlyhank/rds"
+import "github.com/friendlyhank/goredis"
 
 func init(){
 	//redis初始化

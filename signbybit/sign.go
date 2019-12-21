@@ -3,8 +3,8 @@ package signbybit
 import (
 	"fmt"
 	"time"
-	_ "github.com/friendlyhank/goredis/foundation"
-	"github.com/friendlyhank/rds"
+	_ "github.com/friendlyhank/redis-use/foundation"
+	"github.com/friendlyhank/goredis"
 )
 
 //UserSignDate -用户签到
