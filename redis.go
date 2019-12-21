@@ -10,7 +10,8 @@ import (
 	"strings"
 
 	"github.com/astaxie/beego/logs"
-	"github.com/gomodule/redigo/redis"
+	//"github.com/gomodule/redigo/redis"
+	"github.com/friendlyhank/redigo-annotated/redis"
 )
 
 // RedisSource -
@@ -119,17 +120,17 @@ func (rs *RedisSource) CloseConn(conn redis.Conn) (err error) {
 	return
 }
 
-// TTL - 过期时间
-func (rs *RedisSource) TTL(key string) (int, error) {
-	return redis.Int(rs.Do("TTL", key))
-}
-
 // Do -
 func (rs *RedisSource) Do(commandName string, args ...interface{}) (reply interface{}, err error) {
 	c := rs.GetConn()
 	defer rs.CloseConn(c)
 
 	return c.Do(commandName, args...)
+}
+
+// TTL - 过期时间
+func (rs *RedisSource) TTL(key string) (int, error) {
+	return redis.Int(rs.Do("TTL", key))
 }
 
 // Incr -

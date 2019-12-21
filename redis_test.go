@@ -17,6 +17,7 @@ func TestMain(m *testing.M){
 	SetDestory()
 }
 
+//TestRdsSetBit- 位的设置
 func TestRdsSetBit(t *testing.T){
 	rs := GetRedisDefault()
 	err := rs.SetBit("uid:100022:sign:2019-12",1,true)
@@ -53,6 +54,30 @@ func TestRdsBitPos(t *testing.T){
 	t.Logf("%v",count)
 }
 
+//TestIncr -数字增加
+func TestIncr(t *testing.T){
+	count := GetRedisDefault().Incr("10011_999")
+	GetRedisDefault().SetExpire("10011_999",5)
+	t.Logf("%v",count)
+}
+
+//TestGetUint64-获取数字
+func TestGetUint64(t *testing.T){
+	count,err := GetRedisDefault().GetUint64("10011_999")
+	if err != nil{
+		t.Errorf("%v",err)
+		return
+	}
+
+	t.Logf("%v",count)
+
+	ttl,err :=GetRedisDefault().TTL("10011_999")
+	if err != nil{
+		t.Errorf("%v",err)
+		return
+	}
+	t.Logf("%v",ttl)
+}
 
 
 
