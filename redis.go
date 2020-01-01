@@ -10,8 +10,7 @@ import (
 	"strings"
 
 	"github.com/astaxie/beego/logs"
-	//"github.com/gomodule/redigo/redis"
-	"github.com/friendlyhank/redigo-annotated/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 // RedisSource -
