@@ -3,15 +3,12 @@ package rds
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/astaxie/beego"
-	"strconv"
-	"time"
-
-	"strings"
-
 	"github.com/astaxie/beego/logs"
 	"github.com/gomodule/redigo/redis"
+	"time"
 )
+
+var redisSourceMap = make(map[string]*RedisSource)
 
 // RedisSource -
 type RedisSource struct {
@@ -19,8 +16,24 @@ type RedisSource struct {
 	psc    *redis.PubSubConn
 }
 
-var redisSourceMap = make(map[string]*RedisSource)
-var defaultServer string
+// AddRedisServer -
+func AddRedisServer(server, password string, maxIdle int) bool {
+	redisSource := new(RedisSource)
+	logs.Debug("|foundation|rds|redis|AddRedisServer|server:%v,password:%v,maxIdle:%v", server, password, maxIdle)
+	redisSource.dbpool = newPool(server, password, maxIdle)
+	logs.Debug("|foundation|rds|redis|AddRedisServer|server:%v,password:%v,maxIdle:%v|newPool|%+v", server, password, maxIdle, redisSource.dbpool)
+	redisSourceMap[server] = redisSource
+	return true
+}
+
+// GetRedisByServerName -
+func GetRedisByServerName(server string) *RedisSource {
+	if v, ok := redisSourceMap[server]; ok {
+		return v
+	}
+	logs.Warn("Not Found: %s", server)
+	return nil
+}
 
 func newPool(server, password string, maxIdle int) *redis.Pool {
 	if maxIdle == 0 {
@@ -48,54 +61,6 @@ func newPool(server, password string, maxIdle int) *redis.Pool {
 			return err
 		},
 	}
-}
-
-// AddRedisServer -
-func AddRedisServer(server, password string, maxIdle int) bool {
-	redisSource := new(RedisSource)
-	logs.Debug("|foundation|rds|redis|AddRedisServer|server:%v,password:%v,maxIdle:%v", server, password, maxIdle)
-	redisSource.dbpool = newPool(server, password, maxIdle)
-	logs.Debug("|foundation|rds|redis|AddRedisServer|server:%v,password:%v,maxIdle:%v|newPool|%+v", server, password, maxIdle, redisSource.dbpool)
-	redisSourceMap[server] = redisSource
-	return true
-}
-
-// InitRedisServer -
-func InitRedisServer(server, password string, maxIdle int) {
-	defaultServer = server
-	AddRedisServer(server, password, maxIdle)
-}
-
-// Init -
-func Init() {
-	logs.Debug("|foundation|init|rds|Init")
-	//
-	redissource := beego.AppConfig.DefaultString("redis","192.168.85.109:6379,150,123456")
-	if rdss := strings.Split(redissource, ","); len(rdss) == 3 {
-		// address,connect,password
-		maxIdle, _ := strconv.Atoi(rdss[1])
-		InitRedisServer(rdss[0], rdss[2], maxIdle)
-	}
-}
-
-// GetRedisByServerName -
-func GetRedisByServerName(server string) *RedisSource {
-	if v, ok := redisSourceMap[server]; ok {
-		return v
-	}
-	logs.Warn("Not Found: %s", server)
-	return nil
-}
-
-// GetRedisDefault -
-func GetRedisDefault() *RedisSource {
-	if len(defaultServer) == 0 {
-		logs.Debug("|foundation|rds|redis|GetRedisDefault|len(defaultServer)==0|redisSourceMap|%+v", redisSourceMap)
-		for _, s := range redisSourceMap {
-			return s
-		}
-	}
-	return redisSourceMap[defaultServer]
 }
 
 // Ping -
@@ -127,26 +92,20 @@ func (rs *RedisSource) Do(commandName string, args ...interface{}) (reply interf
 	return c.Do(commandName, args...)
 }
 
+// Keys -
+func (rs *RedisSource) Keys(key string) ([]string, error) {
+	return redis.Strings(rs.Do("KEYS", key))
+}
+
 // TTL - 过期时间
 func (rs *RedisSource) TTL(key string) (int, error) {
 	return redis.Int(rs.Do("TTL", key))
 }
 
-// Incr -
-func (rs *RedisSource) Incr(key string) uint64 {
-	n, _ := redis.Uint64(rs.Do("INCR", key))
-	return n
-}
-
-// IncrEx -
-func (rs *RedisSource) IncrEx(key string) (uint64, error) {
-	return redis.Uint64(rs.Do("INCR", key))
-}
-
-// IncrBy -
-func (rs *RedisSource) IncrBy(key string, val int) uint64 {
-	n, _ := redis.Uint64(rs.Do("INCRBY", key, val))
-	return n
+// SetExpire -
+func (rs *RedisSource) SetExpire(key string, expire int) error {
+	_, err := rs.Do("EXPIRE", key, expire)
+	return err
 }
 
 // Del -
@@ -194,27 +153,68 @@ func (rs *RedisSource) SetPx(key string, val interface{}, pexpire int) error {
 	return err
 }
 
-// SetExpire -
-func (rs *RedisSource) SetExpire(key string, expire int) error {
-	_, err := rs.Do("EXPIRE", key, expire)
-	return err
-}
-
 // SetPexpire - ms
 func (rs *RedisSource) SetPexpire(key string, expire int) error {
 	_, err := rs.Do("PEXPIRE", key, expire)
 	return err
 }
 
-// GetUint64 -
-func (rs *RedisSource) GetUint64(key string) (uint64, error) {
-	return redis.Uint64(rs.Do("GET", key))
+// Get -
+func (rs *RedisSource) Get(key string) (interface{}, error) {
+	return rs.Do("GET", key)
+}
+
+// GetString -
+func (rs *RedisSource) GetString(key string) (string, error) {
+	return redis.String(rs.Do("GET", key))
+}
+
+// GetBytes -
+func (rs *RedisSource) GetBytes(key string) ([]byte, error) {
+	raw, err := rs.Do("GET", key)
+	if err != nil {
+		return nil, err
+	}
+	if raw == nil {
+		return nil, nil
+	}
+	return redis.Bytes(raw, err)
+}
+
+// SetJSON -
+func (rs *RedisSource) SetJSON(key string, val interface{}, expire int) error {
+	jsdata, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+
+	return rs.Set(key, jsdata, expire)
+}
+
+// GetJSON -
+func (rs *RedisSource) GetJSON(key string, val interface{}) (interface{}, error) {
+	v, err := redis.String(rs.Do("GET", key))
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal([]byte(v), val)
+	if err != nil {
+		return nil, err
+	}
+
+	return val, nil
 }
 
 // GetUint32 -
 func (rs *RedisSource) GetUint32(key string) (uint32, error) {
 	v, err := rs.GetUint64(key)
 	return uint32(v), err
+}
+
+// GetUint64 -
+func (rs *RedisSource) GetUint64(key string) (uint64, error) {
+	return redis.Uint64(rs.Do("GET", key))
 }
 
 // GetInt64 -
@@ -231,14 +231,136 @@ func (rs *RedisSource) GetInt64Ex(key string, def int64) (int64, error) {
 	return v, err
 }
 
-// GetString -
-func (rs *RedisSource) GetString(key string) (string, error) {
-	return redis.String(rs.Do("GET", key))
+// Incr -
+func (rs *RedisSource) Incr(key string) uint64 {
+	n, _ := redis.Uint64(rs.Do("INCR", key))
+	return n
+}
+
+// IncrEx -
+func (rs *RedisSource) IncrEx(key string) (uint64, error) {
+	return redis.Uint64(rs.Do("INCR", key))
+}
+
+// IncrBy -
+func (rs *RedisSource) IncrBy(key string, val int) uint64 {
+	n, _ := redis.Uint64(rs.Do("INCRBY", key, val))
+	return n
+}
+
+// Hkeys -
+func (rs *RedisSource) Hkeys(key string) ([]string, error) {
+	return redis.Strings(rs.Do("HKEYS", key))
+}
+
+// HGetStr -
+func (rs *RedisSource) HGetStr(key, field string) (string, error) {
+	return redis.String(rs.Do("HGET", key, field))
+}
+
+// HINCRBY -
+func (rs *RedisSource) HINCRBY(key, field string, incr int) error {
+	_, err := rs.Do("HINCRBY", key, field, incr)
+	return err
+}
+
+// HGetInt64 -
+func (rs *RedisSource) HGetInt64(key, field string) (int64, error) {
+	return redis.Int64(rs.Do("HGET", key, field))
+}
+
+// HGetAllInt64Map -
+func (rs *RedisSource) HGetAllInt64Map(key string) (map[string]int64, error) {
+	return redis.Int64Map(rs.Do("HGETALL", key))
+}
+
+// HSet -
+func (rs *RedisSource) HSet(key, field string, val interface{}) error {
+	_, err := rs.Do("HSET", key, field, val)
+	return err
+}
+
+// HDel -
+func (rs *RedisSource) HDel(key, field string) error {
+	_, err := rs.Do("HDEL", key, field)
+	return err
+}
+
+// LPush -
+func (rs *RedisSource) LPush(key string, val interface{}) bool {
+	jsdata, err := json.Marshal(val)
+	if err != nil {
+		return false
+	}
+	_, err = rs.Do("LPUSH", key, jsdata)
+	return err == nil
+}
+
+// RPush -
+func (rs *RedisSource) RPush(key string, val interface{}) bool {
+	jsdata, err := json.Marshal(val)
+	if err != nil {
+		return false
+	}
+	_, err = rs.Do("RPUSH", key, jsdata)
+	return err == nil
+}
+
+// LPop -
+func (rs *RedisSource) LPop(key string, val interface{}) bool {
+	raw, err := rs.Do("LPOP", key)
+	if err != nil || raw == nil {
+		return false
+	}
+	valbytes, err := redis.Bytes(raw, err)
+	if err != nil {
+		return false
+	}
+
+	err = json.Unmarshal(valbytes, val)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+// RPop -
+func (rs *RedisSource) RPop(key string, val interface{}) bool {
+	raw, err := rs.Do("RPOP", key)
+	if err != nil || raw == nil {
+		return false
+	}
+	valbytes, err := redis.Bytes(raw, err)
+	if err != nil {
+		return false
+	}
+
+	err = json.Unmarshal(valbytes, val)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+// LPopInt64 -
+func (rs *RedisSource) LPopInt64(key string) (int64, error) {
+	return redis.Int64(rs.Do("LPOP", key))
 }
 
 // LRANGE -
 func (rs *RedisSource) LRANGE(key string, start, stop int) ([]string, error) {
 	return redis.Strings(rs.Do("LRANGE", key, start, stop))
+}
+
+// LLen -
+func (rs *RedisSource) LLen(key string) uint64 {
+	l, _ := redis.Uint64(rs.Do("LLEN", key))
+	return l
+}
+
+// LTrim -
+func (rs *RedisSource) LTrim(key string, start, end int) (bool, error) {
+	return redis.Bool(rs.Do("LTRIM", key, start, end))
 }
 
 // SMembers -
@@ -291,123 +413,13 @@ func (rs *RedisSource) SRem(key string, val interface{}) error {
 	return err
 }
 
-// GetBytes -
-func (rs *RedisSource) GetBytes(key string) ([]byte, error) {
-	raw, err := rs.Do("GET", key)
-	if err != nil {
-		return nil, err
+// SIsMember  -
+func (rs *RedisSource) SIsMember(key, field string) (bool, error) {
+	resInt, err := redis.Int(rs.Do("SISMEMBER", key, field))
+	if 1 == resInt {
+		return true, err
 	}
-	if raw == nil {
-		return nil, nil
-	}
-	return redis.Bytes(raw, err)
-}
-
-// Get -
-func (rs *RedisSource) Get(key string) (interface{}, error) {
-	return rs.Do("GET", key)
-}
-
-// SetJSON -
-func (rs *RedisSource) SetJSON(key string, val interface{}, expire int) error {
-	jsdata, err := json.Marshal(val)
-	if err != nil {
-		return err
-	}
-
-	return rs.Set(key, jsdata, expire)
-}
-
-// GetJSON -
-func (rs *RedisSource) GetJSON(key string, val interface{}) (interface{}, error) {
-	v, err := redis.String(rs.Do("GET", key))
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal([]byte(v), val)
-	if err != nil {
-		return nil, err
-	}
-
-	return val, nil
-}
-
-// LPush -
-func (rs *RedisSource) LPush(key string, val interface{}) bool {
-	jsdata, err := json.Marshal(val)
-	if err != nil {
-		return false
-	}
-	_, err = rs.Do("LPUSH", key, jsdata)
-	return err == nil
-}
-
-// RPush -
-func (rs *RedisSource) RPush(key string, val interface{}) bool {
-	jsdata, err := json.Marshal(val)
-	if err != nil {
-		return false
-	}
-	_, err = rs.Do("RPUSH", key, jsdata)
-	return err == nil
-}
-
-// LPushStr -
-func (rs *RedisSource) LPushStr(key string, val interface{}) (int, error) {
-	return redis.Int(rs.Do("LPUSH", key, val))
-}
-
-// LLen -
-func (rs *RedisSource) LLen(key string) uint64 {
-	l, _ := redis.Uint64(rs.Do("LLEN", key))
-	return l
-}
-
-// LTrim -
-func (rs *RedisSource) LTrim(key string, start, end int) (bool, error) {
-	return redis.Bool(rs.Do("LTRIM", key, start, end))
-}
-
-// LPop -
-func (rs *RedisSource) LPop(key string, val interface{}) bool {
-	raw, err := rs.Do("LPOP", key)
-	if err != nil || raw == nil {
-		return false
-	}
-	valbytes, err := redis.Bytes(raw, err)
-	if err != nil {
-		return false
-	}
-
-	err = json.Unmarshal(valbytes, val)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-// RPop -
-func (rs *RedisSource) RPop(key string, val interface{}) bool {
-	raw, err := rs.Do("RPOP", key)
-	if err != nil || raw == nil {
-		return false
-	}
-	valbytes, err := redis.Bytes(raw, err)
-	if err != nil {
-		return false
-	}
-
-	err = json.Unmarshal(valbytes, val)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-// LPopInt64 -
-func (rs *RedisSource) LPopInt64(key string) (int64, error) {
-	return redis.Int64(rs.Do("LPOP", key))
+	return false, err
 }
 
 // ZINCRBY -
@@ -419,65 +431,6 @@ func (rs *RedisSource) ZINCRBY(key string, v interface{}, element string) error 
 // ZRANK -
 func (rs *RedisSource) ZRANK(key, element string) (int, error) {
 	return redis.Int(rs.Do("ZRANK", key, element))
-}
-
-// Keys -
-func (rs *RedisSource) Keys(key string) ([]string, error) {
-	return redis.Strings(rs.Do("KEYS", key))
-}
-
-// Hkeys -
-func (rs *RedisSource) Hkeys(key string) ([]string, error) {
-	return redis.Strings(rs.Do("HKEYS", key))
-}
-
-// Uint64 -
-func (rs *RedisSource) Uint64(command, key string) uint64 {
-	v, _ := redis.Uint64(rs.Do(command, key))
-	return v
-}
-
-// HGetStr -
-func (rs *RedisSource) HGetStr(key, field string) (string, error) {
-	return redis.String(rs.Do("HGET", key, field))
-}
-
-// HINCRBY -
-func (rs *RedisSource) HINCRBY(key, field string, incr int) error {
-	_, err := rs.Do("HINCRBY", key, field, incr)
-	return err
-}
-
-// HGetInt64 -
-func (rs *RedisSource) HGetInt64(key, field string) (int64, error) {
-	return redis.Int64(rs.Do("HGET", key, field))
-}
-
-// HGetAllInt64Map -
-func (rs *RedisSource) HGetAllInt64Map(key string) (map[string]int64, error) {
-	return redis.Int64Map(rs.Do("HGETALL", key))
-}
-
-// HSet -
-func (rs *RedisSource) HSet(key, field string, val interface{}) error {
-	_, err := rs.Do("HSET", key, field, val)
-	return err
-
-}
-
-// HDel -
-func (rs *RedisSource) HDel(key, field string) error {
-	_, err := rs.Do("HDEL", key, field)
-	return err
-}
-
-// SIsMember  -
-func (rs *RedisSource) SIsMember(key, field string) (bool, error) {
-	resInt, err := redis.Int(rs.Do("SISMEMBER", key, field))
-	if 1 == resInt {
-		return true, err
-	}
-	return false, err
 }
 
 /******************************************** 发布与订阅 ******************************************************/
@@ -498,6 +451,14 @@ func (rs *RedisSource) Subscribe(channel string) error {
 	return rs.psc.Subscribe(channel)
 }
 
+// Publish -
+func (rs *RedisSource) Publish(channel, value interface{}) error {
+	c := rs.GetConn()
+	defer rs.CloseConn(c)
+	_, err := c.Do("PUBLISH", channel, value)
+	return err
+}
+
 // PSubscribe -
 func (rs *RedisSource) PSubscribe(pattern string) error {
 	if rs.psc == nil {
@@ -513,14 +474,6 @@ func (rs *RedisSource) Receive() interface{} {
 		return fmt.Errorf("please subscribe first")
 	}
 	return rs.psc.Receive()
-}
-
-// Publish -
-func (rs *RedisSource) Publish(channel, value interface{}) error {
-	c := rs.GetConn()
-	defer rs.CloseConn(c)
-	_, err := c.Do("PUBLISH", channel, value)
-	return err
 }
 
 /******************************************** 位图 ******************************************************/
