@@ -20,7 +20,7 @@ type RedisSource struct {
 func AddRedisServer(server, password string, maxIdle int) bool {
 	redisSource := new(RedisSource)
 	logs.Debug("|foundation|rds|redis|AddRedisServer|server:%v,password:%v,maxIdle:%v", server, password, maxIdle)
-	redisSource.dbpool = newPool(server, password, maxIdle)
+	redisSource.dbpool = NewPool(server, password, maxIdle)
 	logs.Debug("|foundation|rds|redis|AddRedisServer|server:%v,password:%v,maxIdle:%v|newPool|%+v", server, password, maxIdle, redisSource.dbpool)
 	redisSourceMap[server] = redisSource
 	return true
@@ -35,7 +35,7 @@ func GetRedisByServerName(server string) *RedisSource {
 	return nil
 }
 
-func newPool(server, password string, maxIdle int) *redis.Pool {
+func NewPool(server, password string, maxIdle int) *redis.Pool {
 	if maxIdle == 0 {
 		maxIdle = 128
 	}
