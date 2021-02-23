@@ -1,11 +1,23 @@
 package redsync
 
 import (
+	"fmt"
 	"testing"
 )
 
-var config =&Config{
-	Address:"127.0.0.1:6379",
+var configs =[]*Config{
+	&Config{
+		Address: "127.0.0.1:6379",
+	},
+	&Config{
+		Address: "127.0.0.1:6380",
+	},
+	&Config{
+		Address: "127.0.0.1:6381",
+	},
+	&Config{
+		Address: "127.0.0.1:6382",
+	},
 }
 
 type Config struct {
@@ -13,14 +25,19 @@ type Config struct {
 }
 
 func TestRedsync(t *testing.T) {
-	pools := newMockPools(1, config)
-	rs := New(pools)
+	pools := newMockPools(configs)
 
-	mutex := rs.NewMutex("test-redsync")
-	err := mutex.Lock()
-	if err != nil {
-
+	for _,pool := range pools{
+		conn := pool.Get()
+		fmt.Println(conn)
 	}
 
-	assertAcquired(t, pools, mutex)
+	//rs := New(pools)
+	//
+	//mutex := rs.NewMutex("test-redsync")
+	//err := mutex.Lock()
+	//if err != nil {
+	//
+	//}
+	//assertAcquired(t, pools, mutex)
 }

@@ -121,7 +121,9 @@ func genValue() (string, error) {
 func (m *Mutex) acquire(pool Pool, value string) (bool, error) {
 	conn := pool.Get()
 	defer conn.Close()
-	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", int(m.expiry/time.Millisecond)))
+
+	pxexpiry := int(m.expiry/time.Millisecond)
+	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", pxexpiry))
 	if err != nil {
 		if err == redis.ErrNil {
 			return false, nil

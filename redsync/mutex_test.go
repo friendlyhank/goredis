@@ -10,7 +10,7 @@ import (
 )
 
 func TestMutex(t *testing.T) {
-	pools := newMockPools(8, config)
+	pools := newMockPools(configs)
 	mutexes := newTestMutexes(pools, "test-mutex", 8)
 	orderCh := make(chan int)
 	for i, mutex := range mutexes {
@@ -32,7 +32,7 @@ func TestMutex(t *testing.T) {
 }
 
 func TestMutexExtend(t *testing.T) {
-	pools := newMockPools(8, config)
+	pools := newMockPools(configs)
 	mutexes := newTestMutexes(pools, "test-mutex-extend", 1)
 	mutex := mutexes[0]
 
@@ -62,7 +62,7 @@ func TestMutexExtend(t *testing.T) {
 }
 
 func TestMutexQuorum(t *testing.T) {
-	pools := newMockPools(4, config)
+	pools := newMockPools(configs)
 	for mask := 0; mask < 1<<uint(len(pools)); mask++ {
 		mutexes := newTestMutexes(pools, "test-mutex-partial-"+strconv.Itoa(mask), 1)
 		mutex := mutexes[0]
@@ -97,7 +97,7 @@ func TestMutexFailure(t *testing.T) {
 	servers[2].Term()
 	servers[6].Term()
 
-	pools := newMockPools(8, config)
+	pools := newMockPools(configs)
 
 	okayPools := []Pool{}
 	for i, v := range pools {
@@ -120,7 +120,7 @@ func TestMutexFailure(t *testing.T) {
 }
 
 func TestValid(t *testing.T) {
-	pools := newMockPools(8, config)
+	pools := newMockPools(configs)
 	rs := New(pools)
 	key := "test-shared-lock"
 
@@ -146,10 +146,10 @@ func TestValid(t *testing.T) {
 	}
 }
 
-func newMockPools(n int, config *Config) []Pool {
-	pools := make([]Pool,n)
+func newMockPools(configs []*Config) []Pool {
+	pools := make([]Pool,len(configs))
 
-	for n >0{
+	for i,config := range configs {
 		pool := &redis.Pool{
 			MaxIdle:     3,
 			IdleTimeout: 240 * time.Second,
@@ -161,14 +161,8 @@ func newMockPools(n int, config *Config) []Pool {
 				return err
 			},
 		}
-		n--
-		pools[n] = pool
-		if len(pools) == n {
-			break
-		}
-
+		pools[i] = pool
 	}
-
 	return pools
 }
 
