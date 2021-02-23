@@ -2,8 +2,8 @@ package simplepublish
 
 import (
 	"fmt"
-	_ "github.com/friendlyhank/redis-use/foundation"
 	"github.com/friendlyhank/goredis"
+	_ "github.com/friendlyhank/redis-use/foundation"
 	"github.com/gomodule/redigo/redis"
 	"log"
 	"sync"
@@ -60,6 +60,10 @@ func (s *SimplePublish)loopReceive(){
 			log.Printf("pubSubConn Receiv Kind：%v;Channel：%v;Count：%v",n.Kind,n.Channel,n.Count)
 		case redis.Pong:
 			log.Printf("pubSubConn Receiv Data：%v",string(n.Data))
+		case error:
+			log.Printf("pubSubConn Receiv Err:%v",n.Error())
+		default:
+			log.Println("pubSubConn no found")
 		}
 	}
 
