@@ -1,7 +1,6 @@
 package redsync
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -27,17 +26,12 @@ type Config struct {
 func TestRedsync(t *testing.T) {
 	pools := newMockPools(configs)
 
-	for _,pool := range pools{
-		conn := pool.Get()
-		fmt.Println(conn)
-	}
+	rs := New(pools)
 
-	//rs := New(pools)
-	//
-	//mutex := rs.NewMutex("test-redsync")
-	//err := mutex.Lock()
-	//if err != nil {
-	//
-	//}
-	//assertAcquired(t, pools, mutex)
+	mutex := rs.NewMutex("test-redsync")
+	err := mutex.Lock()
+	if err != nil {
+
+	}
+	assertAcquired(t, pools, mutex)
 }

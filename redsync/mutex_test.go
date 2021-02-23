@@ -150,20 +150,24 @@ func newMockPools(configs []*Config) []Pool {
 	pools := make([]Pool,len(configs))
 
 	for i,config := range configs {
-		pool := &redis.Pool{
-			MaxIdle:     3,
-			IdleTimeout: 240 * time.Second,
-			Dial: func() (redis.Conn, error) {
-				return redis.Dial("tcp", config.Address,redis.DialPassword("123456"))
-			},
-			TestOnBorrow: func(c redis.Conn, t time.Time) error {
-				_, err := c.Do("PING")
-				return err
-			},
-		}
+		pool := NewRedisPool(config)
 		pools[i] = pool
 	}
 	return pools
+}
+
+func NewRedisPool(config *Config) *redis.Pool{
+	return &redis.Pool{
+		MaxIdle:     3,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", config.Address,redis.DialPassword("123456"))
+		},
+		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			_, err := c.Do("PING")
+			return err
+		},
+	}
 }
 
 func getPoolValues(pools []Pool, name string) []string {
