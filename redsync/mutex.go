@@ -3,6 +3,7 @@ package redsync
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -14,6 +15,7 @@ type DelayFunc func(tries int) time.Duration
 
 // A Mutex is a distributed mutual exclusion lock.
 type Mutex struct {
+	Id int64
 	name   string
 	expiry time.Duration
 
@@ -48,8 +50,9 @@ func (m *Mutex) Lock() error {
 
 		start := time.Now()
 
-		n, err := m.actOnPoolsAsync(func(pool Pool) (bool, error) {
-			return m.acquire(pool, value)
+		n, err := m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
+			var tryId = i
+			return m.acquire(nodeId,tryId,pool, value)
 		})
 		if n == 0 && err != nil {
 			return err
@@ -62,7 +65,7 @@ func (m *Mutex) Lock() error {
 			m.until = until
 			return nil
 		}
-		m.actOnPoolsAsync(func(pool Pool) (bool, error) {
+		m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
 			return m.release(pool, value)
 		})
 	}
@@ -72,7 +75,7 @@ func (m *Mutex) Lock() error {
 
 // Unlock unlocks m and returns the status of unlock.
 func (m *Mutex) Unlock() (bool, error) {
-	n, err := m.actOnPoolsAsync(func(pool Pool) (bool, error) {
+	n, err := m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
 		return m.release(pool, m.value)
 	})
 	if n < m.quorum {
@@ -83,7 +86,7 @@ func (m *Mutex) Unlock() (bool, error) {
 
 // Extend resets the mutex's expiry and returns the status of expiry extension.
 func (m *Mutex) Extend() (bool, error) {
-	n, err := m.actOnPoolsAsync(func(pool Pool) (bool, error) {
+	n, err := m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
 		return m.touch(pool, m.value, int(m.expiry/time.Millisecond))
 	})
 	if n < m.quorum {
@@ -93,7 +96,7 @@ func (m *Mutex) Extend() (bool, error) {
 }
 
 func (m *Mutex) Valid() (bool, error) {
-	n, err := m.actOnPoolsAsync(func(pool Pool) (bool, error) {
+	n, err := m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
 		return m.valid(pool)
 	})
 	return n >= m.quorum, err
@@ -118,18 +121,18 @@ func genValue() (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func (m *Mutex) acquire(pool Pool, value string) (bool, error) {
+func (m *Mutex) acquire(nodeID int,tryID int,pool Pool, value string) (bool, error) {
 	conn := pool.Get()
 	defer conn.Close()
 
-	pxexpiry := int(m.expiry/time.Millisecond)
-	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", pxexpiry))
+	reply, err := redis.String(conn.Do("SET", m.name, value, "NX", "PX", int(m.expiry/time.Millisecond)))
 	if err != nil {
 		if err == redis.ErrNil {
 			return false, nil
 		}
 		return false, err
 	}
+	fmt.Printf("=====%v锁=====|host:%v|tryID:%v|获取锁成功\t",m.Id,configs[nodeID],tryID)
 	return reply == "OK", nil
 }
 
@@ -165,7 +168,7 @@ func (m *Mutex) touch(pool Pool, value string, expiry int) (bool, error) {
 	return err == nil && status != 0, err
 }
 
-func (m *Mutex) actOnPoolsAsync(actFn func(Pool) (bool, error)) (int, error) {
+func (m *Mutex) actOnPoolsAsync(actFn func(int,Pool) (bool, error)) (int, error) {
 	type result struct {
 		Status bool
 		Err    error
@@ -173,12 +176,12 @@ func (m *Mutex) actOnPoolsAsync(actFn func(Pool) (bool, error)) (int, error) {
 
 	ch := make(chan result)
 	//随机多个连接池异步获取锁资源
-	for _, pool := range m.pools {
-		go func(pool Pool) {
+	for i, pool := range m.pools {
+		go func(i int,pool Pool) {
 			r := result{}
-			r.Status, r.Err = actFn(pool)
+			r.Status, r.Err = actFn(i,pool)
 			ch <- r
-		}(pool)
+		}(i,pool)
 	}
 	n := 0
 	var err error

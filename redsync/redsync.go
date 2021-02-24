@@ -18,7 +18,7 @@ func New(pools []Pool) *Redsync {
 func (r *Redsync) NewMutex(name string, options ...Option) *Mutex {
 	m := &Mutex{
 		name:         name,
-		expiry:       60 * time.Second,
+		expiry:       20 * time.Second,
 		tries:        32,
 		delayFunc:    func(tries int) time.Duration { return 500 * time.Millisecond },
 		genValueFunc: genValue,

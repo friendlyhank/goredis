@@ -1,12 +1,12 @@
 package redsync
 
 import (
+	"github.com/stvp/tempredis"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
-	"github.com/stvp/tempredis"
 )
 
 func TestMutex(t *testing.T) {
