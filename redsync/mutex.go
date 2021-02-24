@@ -15,7 +15,7 @@ type DelayFunc func(tries int) time.Duration
 
 // A Mutex is a distributed mutual exclusion lock.
 type Mutex struct {
-	Id int64
+	Id int
 	name   string
 	expiry time.Duration
 
@@ -63,6 +63,7 @@ func (m *Mutex) Lock() error {
 		if n >= m.quorum && now.Before(until) {
 			m.value = value
 			m.until = until
+			fmt.Printf("=====%v号锁=====|锁定数:%v|最终获得了锁\n",m.Id,n)
 			return nil
 		}
 		m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
@@ -132,7 +133,7 @@ func (m *Mutex) acquire(nodeID int,tryID int,pool Pool, value string) (bool, err
 		}
 		return false, err
 	}
-	fmt.Printf("=====%v锁=====|host:%v|tryID:%v|获取锁成功\t",m.Id,configs[nodeID],tryID)
+	fmt.Printf("=====%v号锁=====|host:%v|tryID:%v|获取锁成功\n",m.Id,configs[nodeID],tryID)
 	return reply == "OK", nil
 }
 

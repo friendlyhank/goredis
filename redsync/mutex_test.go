@@ -31,6 +31,26 @@ func TestMutex(t *testing.T) {
 	}
 }
 
+func TestMoreMutex(t *testing.T){
+	pools := newMockPools(configs)
+	mutexes := newTestMutexes(pools, "test-mutex", 100)
+	orderCh := make(chan int)
+	for i, mutex := range mutexes {
+		go func(i int, mutex *Mutex) {
+			err := mutex.Lock()
+			if err != nil {
+				t.Fatalf("Expected err == nil, got %q", err)
+			}
+			defer mutex.Unlock()
+
+			orderCh <- i
+		}(i, mutex)
+	}
+	for range mutexes {
+		<-orderCh
+	}
+}
+
 func TestMutexExtend(t *testing.T) {
 	pools := newMockPools(configs)
 	mutexes := newTestMutexes(pools, "test-mutex-extend", 1)
@@ -124,7 +144,7 @@ func TestValid(t *testing.T) {
 	rs := New(pools)
 	key := "test-shared-lock"
 
-	mutex1 := rs.NewMutex(key, SetExpiry(time.Hour))
+	mutex1 := rs.NewMutex(1,key, SetExpiry(time.Hour))
 	err := mutex1.Lock()
 	if err != nil {
 		t.Fatalf("Expected err != nil, got: %q", err)
@@ -139,7 +159,7 @@ func TestValid(t *testing.T) {
 		t.Fatalf("Expected a valid mutex")
 	}
 
-	mutex2 := rs.NewMutex(key)
+	mutex2 := rs.NewMutex(1,key)
 	err = mutex2.Lock()
 	if err == nil {
 		t.Fatalf("Expected err == nil, got: %q", err)
@@ -219,6 +239,7 @@ func newTestMutexes(pools []Pool, name string, n int) []*Mutex {
 	mutexes := []*Mutex{}
 	for i := 0; i < n; i++ {
 		mutexes = append(mutexes, &Mutex{
+			Id: i,
 			name:         name,
 			expiry:       8 * time.Second,
 			tries:        32,
