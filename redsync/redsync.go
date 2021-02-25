@@ -19,8 +19,8 @@ func (r *Redsync) NewMutex(id int,name string, options ...Option) *Mutex {
 	m := &Mutex{
 		Id:id,
 		name:         name,
-		expiry:       8 * time.Second,
-		tries:        32,
+		expiry:       30 * time.Second,
+		tries:        1,
 		delayFunc:    func(tries int) time.Duration { return 500 * time.Millisecond },
 		genValueFunc: genValue,
 		factor:       0.01,
