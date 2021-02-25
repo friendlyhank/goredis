@@ -11,7 +11,7 @@ import (
 
 func TestMutex(t *testing.T) {
 	pools := newMockPools(configs)
-	mutexes := newTestMutexes(pools, "test-mutex", 50)
+	mutexes := newTestMutexes(pools, "test-mutex", 8)
 	orderCh := make(chan int)
 	for i, mutex := range mutexes {
 		go func(i int, mutex *Mutex) {

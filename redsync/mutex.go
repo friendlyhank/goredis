@@ -57,13 +57,13 @@ func (m *Mutex) Lock() error {
 		if n == 0 && err != nil {
 			return err
 		}
-
+		fmt.Printf("=====%v号锁=====|锁定数:%v|尝试次数:%v|耗时:%v|获取锁失败\n",m.Id,n,i,time.Since(start))
 		now := time.Now()
 		until := now.Add(m.expiry - now.Sub(start) - time.Duration(int64(float64(m.expiry)*m.factor)))
 		if n >= m.quorum && now.Before(until) {
 			m.value = value
 			m.until = until
-			fmt.Printf("=====%v号锁=====|锁定数:%v|耗时:%v|最终获得了锁\n",m.Id,n,time.Since(start))
+			fmt.Printf("=====%v号锁=====|锁定数:%v|尝试次数:%v|耗时:%v|最终获得了锁\n",m.Id,n,i,time.Since(start))
 			return nil
 		}
 		m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
