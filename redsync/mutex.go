@@ -63,7 +63,7 @@ func (m *Mutex) Lock() error {
 		if n >= m.quorum && now.Before(until) {
 			m.value = value
 			m.until = until
-			fmt.Printf("=====%v号锁=====|锁定数:%v|最终获得了锁\n",m.Id,n)
+			fmt.Printf("=====%v号锁=====|锁定数:%v|耗时:%v|最终获得了锁\n",m.Id,n,time.Since(start))
 			return nil
 		}
 		m.actOnPoolsAsync(func(nodeId int,pool Pool) (bool, error) {
